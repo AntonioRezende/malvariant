@@ -46,9 +46,23 @@ include { INPUT_CHECK } from '../subworkflows/local/input_check'
 //
 // MODULE: Installed directly from nf-core/modules
 //
-include { FASTQC                      } from '../modules/nf-core/fastqc/main'
-include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
-include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
+include { FASTQC                         } from '../modules/nf-core/fastqc/main'
+include { MULTIQC                        } from '../modules/nf-core/multiqc/main'
+include { CUSTOM_DUMPSOFTWAREVERSIONS    } from '../modules/nf-core/custom/dumpsoftwareversions/main'
+include { FASTP                          } from '../modules/nf-core/fastp/main'
+include { PICARD_FASTQTOSAM              } from '../modules/nf-core/picard/fastqtosam/main'
+include { BWA_INDEX                      } from '../modules/nf-core/bwa/index/main' 
+include { BWA_MEM                        } from '../modules/nf-core/bwa/mem/main'
+include { GATK4_MERGEBAMALIGNMENT        } from '../modules/nf-core/gatk4/mergebamalignment/main'
+include { GATK4_CREATESEQUENCEDICTIONARY } from '../modules/nf-core/gatk4/createsequencedictionary/main'
+include { SAMTOOLS_FAIDX                 } from '../modules/nf-core/samtools/faidx/main'
+include { GATK4_FILTERMUTECTCALLS        } from '../modules/nf-core/gatk4/filtermutectcalls/main'
+include { GATK4_SELECTVARIANTS           } from '../modules/nf-core/gatk4/selectvariants/main'
+//include { GATK4_VARIANTFILTRATION        } from '../modules/nf-core/gatk4/variantfiltration/main'
+
+include {PICARD_MARKILLUMINAADAPTERS     } from '../modules/local/markadapters'
+include {PICARD_SAMTOFASTQ               } from '../modules/local/samtofastq'
+include {GATK4_MUTECT2                   } from '../modules/local/mutect2'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -82,6 +96,101 @@ workflow MALARIAVARIANT {
     )
     ch_versions = ch_versions.mix(FASTQC.out.versions.first())
 
+    //
+    // MODULE: Run Fastp trimming
+    //
+    FASTP (
+        INPUT_CHECK.out.reads,
+        [],
+        false,
+        false,
+        false
+    )
+    //FASTP.out.reads.view()
+    PICARD_FASTQTOSAM(
+        FASTP.out.reads
+    )
+    //PICARD_FASTQTOSAM.out.bam.view()
+
+    PICARD_MARKILLUMINAADAPTERS{
+        PICARD_FASTQTOSAM.out.bam
+    }
+    //PICARD_MARKILLUMINAADAPTERS.out.bam.view()
+
+    PICARD_SAMTOFASTQ{
+        PICARD_MARKILLUMINAADAPTERS.out.bam
+    }
+    //PICARD_SAMTOFASTQ.out.reads.view()
+
+    reference = [
+        [ id:'reference', single_end:true ],
+        file(params.fasta)
+    ]
+    
+    BWA_INDEX{
+        reference
+    }
+
+    GATK4_CREATESEQUENCEDICTIONARY{
+        reference
+    }
+    
+    BWA_MEM(
+        PICARD_SAMTOFASTQ.out.reads,
+        BWA_INDEX.out.index,
+        reference,
+        true
+    )
+
+    BAMS = BWA_MEM.out.bam.join(PICARD_FASTQTOSAM.out.bam)
+    //BAMS.view()
+
+    GATK4_MERGEBAMALIGNMENT(
+        BAMS,
+        reference,
+        GATK4_CREATESEQUENCEDICTIONARY.out.dict
+    )
+
+
+    SAMTOOLS_FAIDX(
+        reference
+    )
+
+    GATK4_MUTECT2(
+        GATK4_MERGEBAMALIGNMENT.out.bam,
+        reference,
+        SAMTOOLS_FAIDX.out.fai,
+        GATK4_CREATESEQUENCEDICTIONARY.out.dict
+    )
+    //GATK4_MUTECT2.out.vcf.view()
+
+    tempCH = GATK4_MUTECT2.out.vcf.join(GATK4_MUTECT2.out.tbi)
+    nofilteredVCF = tempCH.join(GATK4_MUTECT2.out.stats)
+
+    GATK4_FILTERMUTECTCALLS(
+        nofilteredVCF,
+        reference,
+        SAMTOOLS_FAIDX.out.fai,
+        GATK4_CREATESEQUENCEDICTIONARY.out.dict
+    )
+    //GATK4_FILTERMUTECTCALLS.out.vcf.view()
+
+    filteredVCF = GATK4_FILTERMUTECTCALLS.out.vcf.join(GATK4_FILTERMUTECTCALLS.out.tbi)
+
+    GATK4_SELECTVARIANTS(
+        filteredVCF
+    )
+    //GATK4_SELECTVARIANTS.out.vcf
+
+    //filteredSNPs = GATK4_SELECTVARIANTS.out.vcf.join(GATK4_SELECTVARIANTS.out.tbi)
+
+    //GATK4_VARIANTFILTRATION(
+    //    filteredSNPs,
+    //    reference,
+    //   SAMTOOLS_FAIDX.out.fai,
+    //    GATK4_CREATESEQUENCEDICTIONARY.out.dict
+    //)
+
     CUSTOM_DUMPSOFTWAREVERSIONS (
         ch_versions.unique().collectFile(name: 'collated_versions.yml')
     )
@@ -100,6 +209,8 @@ workflow MALARIAVARIANT {
     ch_multiqc_files = ch_multiqc_files.mix(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(CUSTOM_DUMPSOFTWAREVERSIONS.out.mqc_yml.collect())
     ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]}.ifEmpty([]))
+    ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.json.collect{it[1]}.ifEmpty([]))
+    //ch_multiqc_files = ch_multiqc_files.mix(PICARD_FASTQTOSAM.out.json.collect{it[1]}.ifEmpty([]))
 
     MULTIQC (
         ch_multiqc_files.collect(),
