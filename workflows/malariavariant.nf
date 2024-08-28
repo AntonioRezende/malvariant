@@ -54,6 +54,8 @@ include { PICARD_FASTQTOSAM              } from '../modules/nf-core/picard/fastq
 include { BWA_INDEX                      } from '../modules/nf-core/bwa/index/main' 
 include { BWA_MEM                        } from '../modules/nf-core/bwa/mem/main'
 include { GATK4_MERGEBAMALIGNMENT        } from '../modules/nf-core/gatk4/mergebamalignment/main'
+include { GATK4_MARKDUPLICATES           } from '../modules/nf-core/gatk4/markduplicates/main'
+include { SAMTOOLS_INDEX                 } from '../modules/nf-core/samtools/index/main'
 include { GATK4_CREATESEQUENCEDICTIONARY } from '../modules/nf-core/gatk4/createsequencedictionary/main'
 include { SAMTOOLS_FAIDX                 } from '../modules/nf-core/samtools/faidx/main'
 include { GATK4_FILTERMUTECTCALLS        } from '../modules/nf-core/gatk4/filtermutectcalls/main'
@@ -62,7 +64,8 @@ include { GATK4_SELECTVARIANTS           } from '../modules/nf-core/gatk4/select
 include { BCFTOOLS_VIEW                  } from '../modules/nf-core/bcftools/view/main'
 //include { SNPEFF_SNPEFF                  } from '../modules/nf-core/snpeff/snpeff/main'
 include { GATK4_GENOMICSDBIMPORT         } from '../modules/nf-core/gatk4/genomicsdbimport/main'
-include { GATK4_GENOTYPEGVCFS            } from '../modules/nf-core/gatk4/genotypegvcfs/main'
+//include { GATK4_GENOTYPEGVCFS            } from '../modules/nf-core/gatk4/genotypegvcfs/main'
+include { GATK4_CREATESOMATICPANELOFNORMALS } from '../modules/nf-core/gatk4/createsomaticpanelofnormals/main'
 
 include {PICARD_MARKILLUMINAADAPTERS     } from '../modules/local/markadapters'
 include {PICARD_SAMTOFASTQ               } from '../modules/local/samtofastq'
@@ -176,14 +179,29 @@ workflow MALARIAVARIANT {
     )
     ch_versions = ch_versions.mix(GATK4_MERGEBAMALIGNMENT.out.versions.first())
 
-
     SAMTOOLS_FAIDX(
         reference
     )
     ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions.first())
 
-    GATK4_MUTECT2(
+    GATK4_MARKDUPLICATES(
         GATK4_MERGEBAMALIGNMENT.out.bam,
+        reference,
+        SAMTOOLS_FAIDX.out.fai
+    )
+    ch_versions = ch_versions.mix(GATK4_MARKDUPLICATES.out.versions.first())
+    //GATK4_MARKDUPLICATES.out.bam.view()
+    
+    SAMTOOLS_INDEX(
+        GATK4_MARKDUPLICATES.out.bam
+    )
+    ch_versions = ch_versions.mix(SAMTOOLS_INDEX.out.versions.first())
+
+    deduplicatedBAM = GATK4_MARKDUPLICATES.out.bam.join(SAMTOOLS_INDEX.out.bai)
+    //deduplicatedBAM.view()
+
+    GATK4_MUTECT2(
+        deduplicatedBAM,
         reference,
         SAMTOOLS_FAIDX.out.fai,
         GATK4_CREATESEQUENCEDICTIONARY.out.dict
@@ -226,14 +244,14 @@ workflow MALARIAVARIANT {
         bedregions
     )
     ch_versions = ch_versions.mix(BCFTOOLS_VIEW.out.versions.first())
-    //bcfFiltered = BCFTOOLS_VIEW.out.vcf.join(BCFTOOLS_VIEW.out.tbi)
-    //vcfsfrombcf=bcfFiltered.map{it[1]}.collect().toList()//.view()
-    //tbifrombcf=bcfFiltered.map{it[2]}.collect().toList()//.view()
+    bcfFiltered = BCFTOOLS_VIEW.out.vcf.join(BCFTOOLS_VIEW.out.tbi)
+    vcfsfrombcf=bcfFiltered.map{it[1]}.collect().toList()//.view()
+    tbifrombcf=bcfFiltered.map{it[2]}.collect().toList()//.view()
     
-    //allsamplesVCF= vcfsfrombcf.merge(tbifrombcf)
-    //.map{vcf,tbi -> 
-    //    [[id: "VCF"], vcf, tbi]
-    //}
+    allsamplesVCF= vcfsfrombcf.merge(tbifrombcf)
+    .map{vcf,tbi -> 
+        [[id: "VCF"], vcf, tbi]
+    }
 
     //allsamplesVCF.view()
 
@@ -243,13 +261,13 @@ workflow MALARIAVARIANT {
     //    "/ARezende/singularityNF"
     //)
 
-    //GATK4_GENOMICSDBIMPORT(
-    //    allsamplesVCF,
-    //    bedregions,
-    //    [],
-    //    [],
-    //    []
-    //)
+    GATK4_GENOMICSDBIMPORT(
+        allsamplesVCF,
+        bedregions,
+        [],
+        [],
+        []
+    )
 
     //GATK4_GENOTYPEGVCFS(
     //    GATK4_GENOMICSDBIMPORT.out.genomicsdb,
@@ -257,6 +275,13 @@ workflow MALARIAVARIANT {
     //    SAMTOOLS_FAIDX.out.fai,
     //    GATK4_CREATESEQUENCEDICTIONARY.out.dict
     //)
+
+    GATK4_CREATESOMATICPANELOFNORMALS(
+        GATK4_GENOMICSDBIMPORT.out.genomicsdb,
+        reference,
+        SAMTOOLS_FAIDX.out.fai,
+        GATK4_CREATESEQUENCEDICTIONARY.out.dict
+    )
 
     CUSTOM_DUMPSOFTWAREVERSIONS (
         ch_versions.unique().collectFile(name: 'collated_versions.yml')
@@ -279,6 +304,7 @@ workflow MALARIAVARIANT {
     ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.json.collect{it[1]}.ifEmpty([]))
     ch_multiqc_files = ch_multiqc_files.mix(PICARD_MARKILLUMINAADAPTERS.out.stats.collect{it[1]}.ifEmpty([]))
     ch_multiqc_files = ch_multiqc_files.mix(GATK4_FILTERMUTECTCALLS.out.stats.collect{it[1]}.ifEmpty([]))
+    ch_multiqc_files = ch_multiqc_files.mix(GATK4_MARKDUPLICATES.out.metrics.collect{it[1]}.ifEmpty([]))
     //ch_multiqc_files = ch_multiqc_files.mix(PICARD_FASTQTOSAM.out.json.collect{it[1]}.ifEmpty([]))
 
     MULTIQC (

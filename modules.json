@@ -40,6 +40,11 @@
                         "git_sha": "e6fe277739f5894711405af3e717b2470bd956b5",
                         "installed_by": ["modules"]
                     },
+                    "gatk4/createsomaticpanelofnormals": {
+                        "branch": "master",
+                        "git_sha": "d742e3143f2ccb8853c29b35cfcf50b5e5026980",
+                        "installed_by": ["modules"]
+                    },
                     "gatk4/filtermutectcalls": {
                         "branch": "master",
                         "git_sha": "7d814815f638e1483995b24a23f5f23229036bbf",
@@ -53,6 +58,11 @@
                     "gatk4/genotypegvcfs": {
                         "branch": "master",
                         "git_sha": "d742e3143f2ccb8853c29b35cfcf50b5e5026980",
+                        "installed_by": ["modules"]
+                    },
+                    "gatk4/markduplicates": {
+                        "branch": "master",
+                        "git_sha": "194fca815cf594646e638fa5476acbcc296f1850",
                         "installed_by": ["modules"]
                     },
                     "gatk4/mergebamalignment": {
@@ -83,6 +93,11 @@
                     "samtools/faidx": {
                         "branch": "master",
                         "git_sha": "04fbbc7c43cebc0b95d5b126f6d9fe4effa33519",
+                        "installed_by": ["modules"]
+                    },
+                    "samtools/index": {
+                        "branch": "master",
+                        "git_sha": "46eca555142d6e597729fcb682adcc791796f514",
                         "installed_by": ["modules"]
                     },
                     "snpeff/snpeff": {
