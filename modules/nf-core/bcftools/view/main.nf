@@ -35,7 +35,7 @@ process BCFTOOLS_VIEW {
                     "vcf"
     """
     bcftools view \\
-        --output ${prefix}_SNP_regions.${extension} \\
+        --output ${prefix}_${params.variantion}_regions.${extension} \\
         ${regions_file} \\
         $args \\
         --threads $task.cpus \\

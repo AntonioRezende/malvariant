@@ -33,8 +33,8 @@ process GATK4_SELECTVARIANTS {
     gatk --java-options "-Xmx${avail_mem}M -XX:-UsePerfData" \\
         SelectVariants \\
         --variant $vcf \\
-        --output ${prefix}_SNP.vcf.gz \\
-        -select-type SNP \\
+        --output ${prefix}_${params.variantion}.vcf.gz \\
+        -select-type $params.variantion \\
         --tmp-dir . \\
         $args
 

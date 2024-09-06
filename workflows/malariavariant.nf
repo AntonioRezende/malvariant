@@ -261,13 +261,13 @@ workflow MALARIAVARIANT {
     //    "/ARezende/singularityNF"
     //)
 
-    GATK4_GENOMICSDBIMPORT(
-        allsamplesVCF,
-        bedregions,
-        [],
-        [],
-        []
-    )
+    //GATK4_GENOMICSDBIMPORT(
+    //    allsamplesVCF,
+    //    bedregions,
+    //    [],
+    //    [],
+    //    []
+    //)
 
     //GATK4_GENOTYPEGVCFS(
     //    GATK4_GENOMICSDBIMPORT.out.genomicsdb,
@@ -276,12 +276,12 @@ workflow MALARIAVARIANT {
     //    GATK4_CREATESEQUENCEDICTIONARY.out.dict
     //)
 
-    GATK4_CREATESOMATICPANELOFNORMALS(
-        GATK4_GENOMICSDBIMPORT.out.genomicsdb,
-        reference,
-        SAMTOOLS_FAIDX.out.fai,
-        GATK4_CREATESEQUENCEDICTIONARY.out.dict
-    )
+    //GATK4_CREATESOMATICPANELOFNORMALS(
+    //    GATK4_GENOMICSDBIMPORT.out.genomicsdb,
+    //    reference,
+    //    SAMTOOLS_FAIDX.out.fai,
+    //    GATK4_CREATESEQUENCEDICTIONARY.out.dict
+    //)
 
     CUSTOM_DUMPSOFTWAREVERSIONS (
         ch_versions.unique().collectFile(name: 'collated_versions.yml')
