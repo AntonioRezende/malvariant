@@ -31,8 +31,18 @@
                 "variantion": {
                     "type": "string",
                     "exists": true,
-                    "description": "Type of variantion",
+                    "description": "Type of variantion. Default SNP (INDEL, SNP, MIXED, MNP, SYMBOLIC, NO_VARIATION)",
                     "help_text": "Type of variantion to be printed. Default SNP (INDEL, SNP, MIXED, MNP, SYMBOLIC, NO_VARIATION)"
+                },
+                "r1Front": {
+                    "type": "integer",
+                    "description": "trimming how many bases in front for read1, default is 0",
+                    "help_text": "trimming how many bases in front for read1, default is 0"
+                },
+                "r1Tail": {
+                    "type": "integer",
+                    "description": "trimming how many bases in tail for read1, default is 0",
+                    "help_text": "trimming how many bases in tail for read1, default is 0"
                 },
                 "email": {
                     "type": "string",
@@ -84,7 +94,7 @@
                     "type": "boolean",
                     "description": "Do not load the iGenomes reference config.",
                     "fa_icon": "fas fa-ban",
-                    "hidden": true,
+                    "hidden": false,
                     "help_text": "Do not load `igenomes.config` when running the pipeline. You may choose this option if you observe clashes between custom parameters and those supplied in `igenomes.config`."
                 }
             }
