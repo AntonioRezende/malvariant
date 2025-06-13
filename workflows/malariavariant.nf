@@ -60,16 +60,17 @@ include { GATK4_CREATESEQUENCEDICTIONARY } from '../modules/nf-core/gatk4/create
 include { SAMTOOLS_FAIDX                 } from '../modules/nf-core/samtools/faidx/main'
 include { GATK4_FILTERMUTECTCALLS        } from '../modules/nf-core/gatk4/filtermutectcalls/main'
 include { GATK4_SELECTVARIANTS           } from '../modules/nf-core/gatk4/selectvariants/main'
-//include { GATK4_VARIANTFILTRATION        } from '../modules/nf-core/gatk4/variantfiltration/main'
+include { GATK4_VARIANTFILTRATION        } from '../modules/nf-core/gatk4/variantfiltration/main'
 include { BCFTOOLS_VIEW                  } from '../modules/nf-core/bcftools/view/main'
 //include { SNPEFF_SNPEFF                  } from '../modules/nf-core/snpeff/snpeff/main'
 include { GATK4_GENOMICSDBIMPORT         } from '../modules/nf-core/gatk4/genomicsdbimport/main'
-//include { GATK4_GENOTYPEGVCFS            } from '../modules/nf-core/gatk4/genotypegvcfs/main'
+include { GATK4_GENOTYPEGVCFS            } from '../modules/nf-core/gatk4/genotypegvcfs/main'
 include { GATK4_CREATESOMATICPANELOFNORMALS } from '../modules/nf-core/gatk4/createsomaticpanelofnormals/main'
-
 include {PICARD_MARKILLUMINAADAPTERS     } from '../modules/local/markadapters'
 include {PICARD_SAMTOFASTQ               } from '../modules/local/samtofastq'
 include {GATK4_MUTECT2                   } from '../modules/local/mutect2'
+include {GATK4_HAPLOTYPECALLER           } from '../modules/nf-core/gatk4/haplotypecaller/main'
+include {PICARD_UMIDUPLICATE             } from '../modules/local/umiduplicate'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -178,18 +179,43 @@ workflow MALARIAVARIANT {
         GATK4_CREATESEQUENCEDICTIONARY.out.dict
     )
     ch_versions = ch_versions.mix(GATK4_MERGEBAMALIGNMENT.out.versions.first())
+    //GATK4_MERGEBAMALIGNMENT.out.bam.view()
+    //mergedBAM = GATK4_MERGEBAMALIGNMENT.out.bam.join(GATK4_MERGEBAMALIGNMENT.out.bai)
+    
 
     SAMTOOLS_FAIDX(
         reference
     )
     ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions.first())
+//Check how to deal with UMI later
+/*
+    if(params.UMI==true){
+        
+        PICARD_UMIDUPLICATE(
+            GATK4_MERGEBAMALIGNMENT.out.bam
+            mergedBAM
 
-    GATK4_MARKDUPLICATES(
-        GATK4_MERGEBAMALIGNMENT.out.bam,
-        reference,
-        SAMTOOLS_FAIDX.out.fai
-    )
-    ch_versions = ch_versions.mix(GATK4_MARKDUPLICATES.out.versions.first())
+        )
+        ch_versions = ch_versions.mix(PICARD_UMIDUPLICATE.out.versions.first())
+        PICARD_UMIDUPLICATE.out.bam.view()
+        GATK4_MARKDUPLICATES(
+             PICARD_UMIDUPLICATE.out.bam
+             reference,
+            SAMTOOLS_FAIDX.out.fai
+        )
+        ch_versions = ch_versions.mix(GATK4_MARKDUPLICATES.out.versions.first())
+    }
+*/
+ 
+    //else if(params.UMI==false){
+    
+        GATK4_MARKDUPLICATES(
+            GATK4_MERGEBAMALIGNMENT.out.bam,
+            reference,
+            SAMTOOLS_FAIDX.out.fai
+        )
+        ch_versions = ch_versions.mix(GATK4_MARKDUPLICATES.out.versions.first())
+    //}
     //GATK4_MARKDUPLICATES.out.bam.view()
     
     SAMTOOLS_INDEX(
@@ -200,57 +226,128 @@ workflow MALARIAVARIANT {
     deduplicatedBAM = GATK4_MARKDUPLICATES.out.bam.join(SAMTOOLS_INDEX.out.bai)
     //deduplicatedBAM.view()
 
-    GATK4_MUTECT2(
-        deduplicatedBAM,
-        reference,
-        SAMTOOLS_FAIDX.out.fai,
-        GATK4_CREATESEQUENCEDICTIONARY.out.dict
-    )
+    if(params.germline==false){
+
+        GATK4_MUTECT2(
+            deduplicatedBAM,
+            reference,
+            SAMTOOLS_FAIDX.out.fai,
+            GATK4_CREATESEQUENCEDICTIONARY.out.dict
+        )
     //GATK4_MUTECT2.out.vcf.view()
-    ch_versions = ch_versions.mix(GATK4_MUTECT2.out.versions.first())
+        ch_versions = ch_versions.mix(GATK4_MUTECT2.out.versions.first())
 
-    tempCH = GATK4_MUTECT2.out.vcf.join(GATK4_MUTECT2.out.tbi)
-    nofilteredVCF = tempCH.join(GATK4_MUTECT2.out.stats)
+        tempCH = GATK4_MUTECT2.out.vcf.join(GATK4_MUTECT2.out.tbi)
+        nofilteredVCF = tempCH.join(GATK4_MUTECT2.out.stats)
 
-    GATK4_FILTERMUTECTCALLS(
-        nofilteredVCF,
-        reference,
-        SAMTOOLS_FAIDX.out.fai,
-        GATK4_CREATESEQUENCEDICTIONARY.out.dict
-    )
-    //GATK4_FILTERMUTECTCALLS.out.vcf.view()
-    ch_versions = ch_versions.mix(GATK4_FILTERMUTECTCALLS.out.versions.first())
+        GATK4_FILTERMUTECTCALLS(
+            nofilteredVCF,
+            reference,
+            SAMTOOLS_FAIDX.out.fai,
+            GATK4_CREATESEQUENCEDICTIONARY.out.dict
+        )
+        //GATK4_FILTERMUTECTCALLS.out.vcf.view()
+        ch_versions = ch_versions.mix(GATK4_FILTERMUTECTCALLS.out.versions.first())
 
 
-    filteredVCF = GATK4_FILTERMUTECTCALLS.out.vcf.join(GATK4_FILTERMUTECTCALLS.out.tbi)
+        filteredVCF = GATK4_FILTERMUTECTCALLS.out.vcf.join(GATK4_FILTERMUTECTCALLS.out.tbi)
 
-    GATK4_SELECTVARIANTS(
-        filteredVCF
-    )
+        GATK4_SELECTVARIANTS(
+            filteredVCF
+        )
     //GATK4_SELECTVARIANTS.out.vcf
-    ch_versions = ch_versions.mix(GATK4_SELECTVARIANTS.out.versions.first())
+        ch_versions = ch_versions.mix(GATK4_SELECTVARIANTS.out.versions.first())
 
-    filteredSNPs = GATK4_SELECTVARIANTS.out.vcf.join(GATK4_SELECTVARIANTS.out.tbi)
+        filteredSNPs = GATK4_SELECTVARIANTS.out.vcf.join(GATK4_SELECTVARIANTS.out.tbi)
 
-    //GATK4_VARIANTFILTRATION(
-    //    filteredSNPs,
-    //    reference,
-    //   SAMTOOLS_FAIDX.out.fai,
-    //    GATK4_CREATESEQUENCEDICTIONARY.out.dict
-    //)
+        //GATK4_VARIANTFILTRATION(
+        //    filteredSNPs,
+        //    reference,
+        //   SAMTOOLS_FAIDX.out.fai,
+        //    GATK4_CREATESEQUENCEDICTIONARY.out.dict
+        //)
 
-    BCFTOOLS_VIEW(
-        filteredSNPs,
-        bedregions
-    )
-    ch_versions = ch_versions.mix(BCFTOOLS_VIEW.out.versions.first())
-    bcfFiltered = BCFTOOLS_VIEW.out.vcf.join(BCFTOOLS_VIEW.out.tbi)
-    vcfsfrombcf=bcfFiltered.map{it[1]}.collect().toList()//.view()
-    tbifrombcf=bcfFiltered.map{it[2]}.collect().toList()//.view()
+        BCFTOOLS_VIEW(
+            filteredSNPs,
+            bedregions
+        )
+        ch_versions = ch_versions.mix(BCFTOOLS_VIEW.out.versions.first())
+        bcfFiltered = BCFTOOLS_VIEW.out.vcf.join(BCFTOOLS_VIEW.out.tbi)
+        vcfsfrombcf=bcfFiltered.map{it[1]}.collect().toList()//.view()
+        tbifrombcf=bcfFiltered.map{it[2]}.collect().toList()//.view()
     
-    allsamplesVCF= vcfsfrombcf.merge(tbifrombcf)
-    .map{vcf,tbi -> 
-        [[id: "VCF"], vcf, tbi]
+        allsamplesVCF= vcfsfrombcf.merge(tbifrombcf)
+        .map{vcf,tbi -> 
+            [[id: "VCF"], vcf, tbi]
+        }
+
+    }
+    else if(params.germline==true){
+        
+        GATK4_HAPLOTYPECALLER(
+            deduplicatedBAM,
+            reference,
+            SAMTOOLS_FAIDX.out.fai,
+            GATK4_CREATESEQUENCEDICTIONARY.out.dict,
+        )
+        ch_versions = ch_versions.mix(GATK4_HAPLOTYPECALLER.out.versions.first())
+        haplotypeVCF = GATK4_HAPLOTYPECALLER.out.vcf.join(GATK4_HAPLOTYPECALLER.out.tbi)
+        vcfsfromhaplo=haplotypeVCF.map{it[1]}.collect().toList()//.view()
+        tbisfromhaplo=haplotypeVCF.map{it[2]}.collect().toList()//.view()
+
+        allsamplesVCF= vcfsfromhaplo.merge(tbisfromhaplo)
+        .map{vcf,tbi -> 
+            [[id: "VCF"], vcf, tbi]
+        }
+
+        GATK4_GENOMICSDBIMPORT(
+            allsamplesVCF,
+            bedregions,
+            [],
+            [],
+            []
+        )
+        ch_versions = ch_versions.mix(GATK4_GENOMICSDBIMPORT.out.versions.first())
+
+        GATK4_GENOTYPEGVCFS(
+            GATK4_GENOMICSDBIMPORT.out.genomicsdb,
+            reference,
+            SAMTOOLS_FAIDX.out.fai,
+            GATK4_CREATESEQUENCEDICTIONARY.out.dict
+        )
+        ch_versions = ch_versions.mix(GATK4_GENOTYPEGVCFS.out.versions.first())
+
+        jointVCF = GATK4_GENOTYPEGVCFS.out.vcf.join(GATK4_GENOTYPEGVCFS.out.tbi)
+
+        GATK4_SELECTVARIANTS(
+            jointVCF
+        )
+
+        filteredJointVCF =  GATK4_SELECTVARIANTS.out.vcf.join(GATK4_SELECTVARIANTS.out.tbi)
+
+
+        if(params.variation=="SNP"){
+
+            GATK4_VARIANTFILTRATION(
+                filteredJointVCF,
+                reference,
+                SAMTOOLS_FAIDX.out.fai,
+                GATK4_CREATESEQUENCEDICTIONARY.out.dict
+            )
+            ch_versions = ch_versions.mix(GATK4_VARIANTFILTRATION.out.versions.first())
+        }
+        else if(params.variation=="INDEL"){
+
+            GATK4_VARIANTFILTRATION(
+                filteredJointVCF,
+                reference,
+                SAMTOOLS_FAIDX.out.fai,
+                GATK4_CREATESEQUENCEDICTIONARY.out.dict
+            )
+            ch_versions = ch_versions.mix(GATK4_VARIANTFILTRATION.out.versions.first())
+
+        }
+
     }
 
     //allsamplesVCF.view()
@@ -303,7 +400,7 @@ workflow MALARIAVARIANT {
     ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]}.ifEmpty([]))
     ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.json.collect{it[1]}.ifEmpty([]))
     ch_multiqc_files = ch_multiqc_files.mix(PICARD_MARKILLUMINAADAPTERS.out.stats.collect{it[1]}.ifEmpty([]))
-    ch_multiqc_files = ch_multiqc_files.mix(GATK4_FILTERMUTECTCALLS.out.stats.collect{it[1]}.ifEmpty([]))
+    //ch_multiqc_files = ch_multiqc_files.mix(GATK4_FILTERMUTECTCALLS.out.stats.collect{it[1]}.ifEmpty([]))
     ch_multiqc_files = ch_multiqc_files.mix(GATK4_MARKDUPLICATES.out.metrics.collect{it[1]}.ifEmpty([]))
     //ch_multiqc_files = ch_multiqc_files.mix(PICARD_FASTQTOSAM.out.json.collect{it[1]}.ifEmpty([]))
 
@@ -315,7 +412,6 @@ workflow MALARIAVARIANT {
     )
     multiqc_report = MULTIQC.out.report.toList()
 }
-
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     COMPLETION EMAIL AND SUMMARY

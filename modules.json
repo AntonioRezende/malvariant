@@ -60,6 +60,11 @@
                         "git_sha": "d742e3143f2ccb8853c29b35cfcf50b5e5026980",
                         "installed_by": ["modules"]
                     },
+                    "gatk4/haplotypecaller": {
+                        "branch": "master",
+                        "git_sha": "05954dab2ff481bcb999f24455da29a5828af08d",
+                        "installed_by": ["modules"]
+                    },
                     "gatk4/markduplicates": {
                         "branch": "master",
                         "git_sha": "194fca815cf594646e638fa5476acbcc296f1850",

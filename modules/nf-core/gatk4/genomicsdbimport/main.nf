@@ -1,6 +1,7 @@
 process GATK4_GENOMICSDBIMPORT {
     tag "$meta.id"
     label 'process_medium'
+    //env.TILEDB_DISABLE_FILE_LOCKING=1
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -54,6 +55,8 @@ process GATK4_GENOMICSDBIMPORT {
         avail_mem = (task.memory.mega*0.8).intValue()
     }
     """
+    export TILEDB_DISABLE_FILE_LOCKING=1
+    echo "Variable is \$TILEDB_DISABLE_FILE_LOCKING"
     gatk --java-options "-Xmx${avail_mem}M -XX:-UsePerfData" \\
         GenomicsDBImport \\
         $input_command \\

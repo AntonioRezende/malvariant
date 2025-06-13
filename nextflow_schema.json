@@ -28,11 +28,23 @@
                     "description": "The output directory where the results will be saved. You have to use absolute paths to storage on Cloud infrastructure.",
                     "fa_icon": "fas fa-folder-open"
                 },
-                "variantion": {
+                "variation": {
                     "type": "string",
                     "exists": true,
-                    "description": "Type of variantion. Default SNP (INDEL, SNP, MIXED, MNP, SYMBOLIC, NO_VARIATION)",
-                    "help_text": "Type of variantion to be printed. Default SNP (INDEL, SNP, MIXED, MNP, SYMBOLIC, NO_VARIATION)"
+                    "description": "Type of variation. Default SNP (INDEL, SNP, MIXED, MNP, SYMBOLIC, NO_VARIATION)",
+                    "help_text": "Type of variation to be printed. Default SNP (INDEL, SNP, MIXED, MNP, SYMBOLIC, NO_VARIATION)"
+                },
+                "germline": {
+                    "type": "boolean",
+                    "description": "Analysis will be performed to germline data",
+                    "default": true,
+                    "fa_icon": "fas fa-check-square",
+                },
+                "UMI": {
+                    "type": "boolean",
+                    "description": "Sequence data has UMI info",
+                    "default": true,
+                    "fa_icon": "fas fa-check-square",
                 },
                 "r1Front": {
                     "type": "integer",
